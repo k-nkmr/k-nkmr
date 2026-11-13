@@ -1,0 +1,52 @@
+name: Update profile cards
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every day at 03:00 JST.
+    - cron: '0 18 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-summary-cards
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check token configuration
+        env:
+          SUMMARY_GITHUB_TOKEN: ${{ secrets.SUMMARY_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$SUMMARY_GITHUB_TOKEN" ]; then
+            echo '::error::Add the SUMMARY_GITHUB_TOKEN repository secret before running this workflow.'
+            exit 1
+          fi
+
+      - name: Generate cards
+        uses: vn7n24fzkq/github-profile-summary-cards@release
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUMMARY_GITHUB_TOKEN }}
+        with:
+          USERNAME: k-nkmr
+          THEME: github
+          TIME_ZONE: Asia/Tokyo
+          AUTO_PUSH: false
+
+      - name: Publish displayed cards
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add profile-summary-card-output/github/0-profile-details.svg profile-summary-card-output/github/2-most-commit-language.svg
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'docs: update profile cards'
+          git push origin HEAD:main
